@@ -1,9 +1,9 @@
 ---
-title: "Technical Note"
-subtitle: "[[Template](https://github.com/useRconf/templates). _Recommended total reading time: 4-5min_]"
-author: ["Author1, Affiliation1", "Author2, Affiliation2"]
-#affiliations: ["useR", "R-Ladies"]
+title: "Bringing Auto-diff to R packages"
+subtitle: ""
+author: ["Michael Komodromos, Imperial College London"]
 date: "`r Sys.Date()`"
+bibliography: "refs.bib"
 output:
   html_document:
     keep_md: TRUE
@@ -32,103 +32,64 @@ knitr::knit_hooks$set(
 
 ```
 
-<script type="text/javascript"
-  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
-</script>
 
 ## Abstract
 
-[Short statement or paragraph summarizing the Technical Note. Up to 250 words.]
-
-**Tips for structured abstract:** Background; Findings, the technical details of the method, how the method was performed and statistical tests used; Conclusions, brief summary and potential implications. Please minimize the use of abbreviations and do not cite references in the abstract.
+We demonstrate the use of a C++ algorithmic differentiation library and show
+how it can be used with the R programming language to solve problems in optimization, 
+MCMC and beyond. In particular, we show how gradients produced with algorithmic differentiation
+can be used with R's built in optimization routines. We hope such integrations will enable package
+developers to produce robust efficient code by overcoming the need to produce
+functions that compute gradients.
 
 ### Keywords
 
-R package development, R Shiny webapp, Bioinformatics
+R package development, algorithmic-differentiation
 
-## Findings
+## Introduction
 
-The findings section can be broken into subsections with short informative headings. There is no maximum length for this section, but we encourage authors to be concise. If you include citations, you need to add them manually, but you can cross link them with this syntax (e.g., Allaire 2020)[^blogdown]
+Algorithm differentiation (AD), also known as automatic-differentiation, has found wide use in machine leaning and statistics. As the name suggest AD allows for the automatic computation of derivatives, without the need to painstakingly derive there expressions.
 
-### Including Rmd subsections
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
-
-### Including code
-
-You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-### Including math
-You can write math expressions using LaTeX formatting:
-$$
-ABC = pqr_{sub} \circ logABC
-$$
-
-### Including plots
-
-You can also embed plots, for example:
-
-```{r pressure, hugoopts=list(alt="alternative text please make it informative", caption="this is what this image shows, write it here or in the paragraph after the image as you prefer", width=300)}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
 ## Methods
 
-For Technical Notes, this section is specific for including any additional methods used in the manuscript, that are not part of the new work being described in the manuscript.
+AD allows for fast computation of function gradients through repeated application of the chain rule. There are two main modes in AD, *forward mode* and *reverse mode*. For a detailed introduction to AD we direct the reader to @Gebremedhin2020.
+
+Throughout our explanation of forward and reverse mode AD we will consider the function
+$$
+f(x_1, x_2) = \exp(x_1 + x_2) + \sin(x_1 + x_2),
+$$
+where $x_1,x_2 \in \mathbb{R}$.
 
 
-### **Availability of supporting source code and requirements**
+### Forward mode
 
-List the following:
+...
 
--   Project name: e.g. My bioinformatics project
--   Project home page: e.g. https://github.com/useRconf/templates
--   Operating system(s): e.g. Platform independent
--   Programming language: e.g. R
--   Other requirements: e.g. R 4.0.5 or higher
--   License: e.g. GNU GPL, FreeBSD etc.
+### Reverse mode
 
-### Data availability
+...
+
+## Examples
+
+
+
+## Conclusions
+
 
 ## Declarations
 
 ### List of abbreviations
 
-...
+ - AD: algorithmic differentiation
 
-### Competing interests
+### Availability of supporting source code and requirements
 
-...
+-   Project name: rad
+-   Project home page: https://github.com/mkomod/rad
+-   Operating system(s): Platform Independent
+-   Programming language: R, C++
+-   License: GNU GPL
 
-### Funding
+# References
 
-...
-
-### Author contributions
-
-Janani Ravi and Mohamed El Fodil Ihaddaden created the Rmd and CSS
-templates, respectively.
-
-### Acknowledgments
-
-We are grateful to these resources for our inspiration to draft this Rmd
-Technical Note template.
-
-1.  [RMarkdown cookbook by Yihui Xie.](https://bookdown.org/yihui/rmarkdown-cookbook/)
-2.  [GigaScience Technical note instructions. Oxford Academic.](https://academic.oup.com/gigascience/pages/technical_note)
-3.  [ResearchGate: Writing a technical note](https://www.researchgate.net/publication/42807606_Writing_a_technical_note)
-4.  [NIST Technical Note Template](https://www.overleaf.com/latex/templates/nist-technical-note-template/gjytbtqtpsmt)
-5. [Miscellaneous Wisdom about R Markdown & Hugo Gained from Work on our Website]( https://ropensci.org/blog/2020/04/23/rmd-learnings/)
-
-
-[^blogdown]:*Allaire JJ, Xie Y, McPherson J, et al.,* Rmakrkdown: Dynamic Documents for R., 2020;
-
-<br><br><br>
