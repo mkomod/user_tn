@@ -12,24 +12,23 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.path = "")
 
-knitr::knit_hooks$set(
-  plot = function(x, options) {
-    hugoopts <- options$hugoopts
-    paste0(
-      "{", "{<figure src=", # the original code is simpler
-      # but here I need to escape the shortcode!
-      '"', x, '" ',
-      if (!is.null(hugoopts)) {
-        glue::glue_collapse(
-          glue::glue('{names(hugoopts)}="{hugoopts}"'),
-          sep = " "
-        )
-      },
-      ">}}\n"
-    )
-  }
-)
-
+# knitr::knit_hooks$set(
+#   plot = function(x, options) {
+#     hugoopts <- options$hugoopts
+#     paste0(
+#       "{", "{<figure src=", # the original code is simpler
+#       # but here I need to escape the shortcode!
+#       '"', x, '" ',
+#       if (!is.null(hugoopts)) {
+#         glue::glue_collapse(
+#           glue::glue('{names(hugoopts)}="{hugoopts}"'),
+#           sep = " "
+#         )
+#       },
+#       ">}}\n"
+#     )
+#   }
+# )
 ```
 
 
@@ -37,57 +36,200 @@ knitr::knit_hooks$set(
 
 We demonstrate the use of a C++ algorithmic differentiation library and show
 how it can be used with the R programming language to solve problems in optimization, 
-MCMC and beyond. In particular, we show how gradients produced with algorithmic differentiation
-can be used with R's built in optimization routines. We hope such integrations will enable package
+MCMC and beyond. We hope such integrations will enable package
 developers to produce robust efficient code by overcoming the need to produce
 functions that compute gradients.
 
 ### Keywords
 
-R package development, algorithmic-differentiation
+R package development, algorithmic-differentiation, Rcpp
 
 ## Introduction
 
-Algorithm differentiation (AD), also known as automatic-differentiation, has found wide use in machine leaning and statistics. As the name suggest AD allows for the automatic computation of derivatives, without the need to painstakingly derive there expressions.
+Algorithm differentiation (AD), also known as automatic-differentiation, has
+found wide use in machine leaning and statistics. As the name suggest AD allows
+for the automatic computation of derivatives, removing the need to painstakingly
+derive there expressions. We present a brief overview of AD and demonstrate how
+it can be used in package development.
 
 
 ## Methods
 
-AD allows for fast computation of function gradients through repeated application of the chain rule. There are two main modes in AD, *forward mode* and *reverse mode*. For a detailed introduction to AD we direct the reader to @Gebremedhin2020.
+AD allows for fast computation of function gradients through repeated
+application of the chain rule. There are two modes of AD: *forward mode* and
+*reverse mode*. Throughout our explanation of these modes we will consider the
+function, 
+$$ f(x_1, x_2) = \exp(x_1 + x_2) + \sin(x_1 + x_2), $$ 
+where $x_1,x_2 \in \mathbb{R}$. Notably, the computation graph for $f$ is presented 
+in Figure 1. For a detailed introduction to AD we direct the reader to @Gebremedhin2020.
 
-Throughout our explanation of forward and reverse mode AD we will consider the function
-$$
-f(x_1, x_2) = \exp(x_1 + x_2) + \sin(x_1 + x_2),
-$$
-where $x_1,x_2 \in \mathbb{R}$.
+![**Figure 1.** Computation graph for $f(x_1, x_2)$](./comp_graph.png)
+
 
 
 ### Forward mode
 
-...
+Forward mode AD involves propagation of derivatives with the evaluation of the
+function. For instance, we can break our example function, $f$, into a sequence
+of elemental operations, presented in the first column of Table 1. As these
+elemental operations have known derivatives we can compute expression for them,
+presented in the third column of Table 1. For instance, consider $\partial
+f/\partial x_1$ evaluated as $x_1=0.5$ and $x_2=1$, we can compute both the
+gradient and function evaluations, as presented in columns two and four resp.
+
+| Function                |            | Gradient                                 | Derivative wrt. $x_1$ |
+|:---|:---|:---|:---|
+| $v_{-1} = x_1$          | $= 0.5$    | $\dot{v}_{-1} = \dot{x}_1$               | $= 1$     |             
+| $v_{0} = x_2$           | $= 1$      | $\dot{v}_{0} = \dot{x}_2$                | $= 0$     |
+| $v_{1} = v_{-1} + v_0$  | $= 1.5$    | $\dot{v}_{1} = \dot{v}_{-1} + \dot{v}_0$ | $= 1$   |
+| $v_{2} = \exp(v_1)$     | $= 4.4817$ | $\dot{v}_{2} = \exp(v_1)*\dot{v}_1$      | $=4.4817$ |
+| $v_{3} = \sin(v_1)$     | $= 0.9975$ | $\dot{v}_{3} = \cos(v_1)*\dot{v}_1$            | $=0.0707$ |
+| $v_{4} = v_2 + v_3$     | $= 5.4792$ | $\dot{v}_{4} = \dot{v}_2 + \dot{v}_3$    | $=4.5524$ |
+| $y = v_4$               | $= 5.4791$ | $\dot{y} = \dot{v}_4$                    | $=4.5524$ |
+
+**Table 1.** Forward mode AD for $f$.
+
+Notably, for a function $g : \mathbb{R}^n \to \mathbb{R}^m$, forward mode AD
+requires $n$ passess to compute the derivative wrt. to each input.
+
 
 ### Reverse mode
 
-...
+Reverse mode AD involves 
+
 
 ## Examples
+
+To illustrate the use of AD for R package deleopment we have provided an
+accompanying repository, available at https://github.com/mkomod/user21_ex. To
+perform AD we rely on the CppAD library [@cppad]. 
+
+### Optimization
+
+We are going to be considering the function
+$$
+    f(x_1, x_2) = \frac{\sin(\sqrt(x_1^2 + x_2^2))}{\sqrt(x_1^2 + x_2^2))}
+$$
+Presented in Figure 2. Our aim is to use AD to find the maxima of $f$.
+```{r pressure, fig.align="center", echo=F}
+par(mar=c(0, 0, 0, 0))
+f <- function(x, y) { r <- sqrt(x^2+y^2); sin(r)/r }
+x1 <- seq(-10, 10, 0.2)
+x2 <- seq(-10, 10, 0.2)
+z <- matrix(0, nrow=length(x1), ncol=length(x2))
+
+for (i in seq_along(x1))
+    for (j in seq_along(x2))
+	z[i, j] <- f(x1[i], x2[j])
+
+nrz <- nrow(z)
+ncz <- ncol(z)
+nbcol <- 100
+color <- hcl.colors(nbcol)
+zfacet <- z[-1, -1] + z[-1, -ncz] + z[-nrz, -1] + z[-nrz, -ncz]
+facetcol <- cut(zfacet, nbcol)
+persp(x1, x2, z, col = color[facetcol], phi = 30, theta = -30, box=F, lwd=0.2)
+```
+**Figure 2.** $f(x_1, x_2)$
+
+To begin with we define an objective function of interest in C++, noting we are using Rcpp to expose these functions to the R environment.
+
+```{c++}
+using namespace CppAD;
+using namespace Eigen;
+
+// [[Rcpp::export]]
+double fx(VectorXd x) {
+    double r = 0.0;
+    for (int i = 0; i < x.rows(); ++i)
+        r += x(i) * x(i);
+    r = sqrt(r);
+    return sin(r)/r;
+}
+```
+
+We then set up the auto-diff version
+
+```{c++}
+typedef AD<double> a_double;
+typedef Matrix<a_double, Eigen::Dynamic, 1> a_vector;
+
+a_double fx(a_vector x) {
+    a_double r = 0.0;
+    for (int i = 0; i < x.rows(); ++i)
+        r += x(i) * x(i);
+    r = sqrt(r);
+    return sin(r)/r;
+}
+```
+
+and expose the gradient
+
+```{c++}
+// [[Rcpp::export]]
+VectorXd fp(VectorXd x) 
+{
+    a_vector ax(x.rows());
+    a_vector y(1);
+    ADFun<double> gr;
+
+    for (int i = 0; i < x.rows(); ++i)
+        ax(i) = x(i);
+
+    Independent(ax);
+    y(0) = fx(ax);
+    gr.Dependent(ax, y);
+
+    return gr.Jacobian(x);
+}
+```
+
+We can call the `fx` and `fp` functions directly in  R. Hence we can use them to find maxima using the built in `optim` function,
+
+```{r, eval=F}
+x <- matrix(c(1, 0.2))
+optim(x, fx, fp, method="CG", control=list(fnscale=-1))
+```
+Returning a maxima at $(5\times 10^{-6}, 1 \times 10^{-6})$ with a function
+value of $1$.
+
+### Hamiltonian Monte-Carlo
+
+Hamiltonian Monte Carlo (HMC) is a method used to sample from conditional
+distributions. HMC is most widely used in Bayesian inference, and offers an
+efficient way to sample from posterior distributions. For a review of HMC we
+direct the reader to @Neal2011. For our example we consider the model
+$$
+y_i = \beta^\top x_i + \epsilon_i, \quad \epsilon_i \overset{iid}{\sim} N(0, \sigma^2), \quad i = 1, \dots, n,
+$$
+where $\beta, x_i \in \mathbb{R}^p$ are vectors of coefficients and explanatory
+variables respectively. Further, we let
+$$
+    \beta_j \sim N(0, \sigma^2_\beta), \quad j = 1, \dots p.
+$$
+Further we suppose $\sigma$ is known and equal to $1$.
 
 
 
 ## Conclusions
 
+In recent years there has been a push to bring AD to R natively, for example,
+projects such as Pqr have extended R's core functionality to include AD [@pqr].
+We have presented an alternative option for computing gradients in R through
+Rcpp and CppAD. Evidently, the requirement of external libraries does not allow
+for wide scale use, however, we hope such options will encourage package
+developers to bring AD into their projects.
 
 ## Declarations
 
 ### List of abbreviations
 
  - AD: algorithmic differentiation
+ - HMC: Hamiltonian Monte Carlo
 
 ### Availability of supporting source code and requirements
 
--   Project name: rad
--   Project home page: https://github.com/mkomod/rad
--   Operating system(s): Platform Independent
+-   Project home page: https://github.com/mkomod/user21_ex
 -   Programming language: R, C++
 -   License: GNU GPL
 
