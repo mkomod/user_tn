@@ -2,34 +2,14 @@
 title: "Bringing Auto-diff to R packages"
 subtitle: ""
 author: ["Michael Komodromos, Imperial College London"]
-date: "`r Sys.Date()`"
+date: "2021-06-20"
 bibliography: "refs.bib"
 output:
   html_document:
     keep_md: TRUE
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.path = "")
 
-# knitr::knit_hooks$set(
-#   plot = function(x, options) {
-#     hugoopts <- options$hugoopts
-#     paste0(
-#       "{", "{<figure src=", # the original code is simpler
-#       # but here I need to escape the shortcode!
-#       '"', x, '" ',
-#       if (!is.null(hugoopts)) {
-#         glue::glue_collapse(
-#           glue::glue('{names(hugoopts)}="{hugoopts}"'),
-#           sep = " "
-#         )
-#       },
-#       ">}}\n"
-#     )
-#   }
-# )
-```
 
 ## Abstract
 
@@ -134,25 +114,7 @@ $$
     f(x_1, x_2) = \frac{\sin(\sqrt(x_1^2 + x_2^2))}{\sqrt(x_1^2 + x_2^2))}
 $$
 Presented in Figure 2. Our aim is to use AD to find the maxima of $f$.
-```{r pressure, fig.align="center", echo=F}
-par(mar=c(0, 0, 0, 0))
-f <- function(x, y) { r <- sqrt(x^2+y^2); sin(r)/r }
-x1 <- seq(-10, 10, 0.2)
-x2 <- seq(-10, 10, 0.2)
-z <- matrix(0, nrow=length(x1), ncol=length(x2))
-
-for (i in seq_along(x1))
-    for (j in seq_along(x2))
-	z[i, j] <- f(x1[i], x2[j])
-
-nrz <- nrow(z)
-ncz <- ncol(z)
-nbcol <- 100
-color <- hcl.colors(nbcol)
-zfacet <- z[-1, -1] + z[-1, -ncz] + z[-nrz, -1] + z[-nrz, -ncz]
-facetcol <- cut(zfacet, nbcol)
-persp(x1, x2, z, col = color[facetcol], phi = 30, theta = -30, box=F, lwd=0.2)
-```
+<img src="pressure-1.png" style="display: block; margin: auto;" />
 **Figure 2.** $f(x_1, x_2)$
 
 To begin with we define an objective function of interest in C++, noting we are using Rcpp to expose these functions to the R environment.
@@ -209,7 +171,8 @@ VectorXd fp(VectorXd x)
 
 We can call the `fx` and `fp` functions directly in  R. Hence we can use them to find maxima using the built in `optim` function,
 
-```{r, eval=F}
+
+```r
 x <- matrix(c(1, 0.2))
 optim(x, fx, fp, method="CG", control=list(fnscale=-1))
 ```
