@@ -55,14 +55,15 @@ it can be used in package development.
 ## Methods
 
 AD allows for fast computation of function gradients through repeated
-application of the chain rule. There are two modes of AD: *forward mode* and
+application of the chain rule. For a detailed introduction to AD we 
+direct the reader to @Gebremedhin2020. There are two modes of AD: *forward mode* and
 *reverse mode*. Throughout our explanation of these modes we will consider the
 function, 
 $$ f(x_1, x_2) = \exp(x_1 + x_2) + \sin(x_1 + x_2), $$ 
-where $x_1,x_2 \in \mathbb{R}$. Notably, the computation graph for $f$ is presented 
-in Figure 1. For a detailed introduction to AD we direct the reader to @Gebremedhin2020.
+where $x_1,x_2 \in \mathbb{R}$. The computation graph for $f$ is presented 
+in Figure 1. 
 
-![**Figure 1.** Computation graph for $f(x_1, x_2)$](./comp_graph.png)
+![**Figure 1.** Computation graph for $f(x_1, x_2)$. Operations above vertices represent the function applied to the previous node](./comp_graph.png)
 
 
 
@@ -99,14 +100,15 @@ function value $y$ and traversing the computation graph in reverse towards
 the independent variables $x$ [@Gebremedhin2020]. Unlike forward mode, derivatives
 are not pragated alongside the evaluation of the functions. Instead, we first
 evaluate the function and then compute the derivatives. Continuing with our example,
-denomstrate reverse mode AD for $f(x_1, x_2)$ taking $x_1=0.5$ and $x_2=1$.
+we denomstrate the steps involved in reverse mode AD for $f(x_1, x_2)$, as before we have taken
+ $x_1=0.5$ and $x_2=1$.
 
 Noting that unlike forward mode AD, we evaluate the gradient for both
 $x_1$ and $x_2$ in one pass. Hence, for functions $f: \mathbb{R}^n \rightarrow \mathbb{R}^m$
 it is more efficient to use reverse mode AD when $n>m$.
 
 
-| Gradient                                 | Derivative |
+| Gradients (or Adjoints)                  | Value |
 |:---|:---|
 | $\bar{v}_{4} = \bar{y}$		   | $=1$      |
 | $\bar{v}_{3} += \bar{v}_5$		   | $=1$      |
@@ -124,7 +126,9 @@ it is more efficient to use reverse mode AD when $n>m$.
 
 To illustrate the use of AD for R package deleopment we have provided an
 accompanying repository, available at https://github.com/mkomod/user21_ex. To
-perform AD we rely on the CppAD library [@cppad]. 
+perform AD we rely on the CppAD library [@cppad]. Noting we have included the source
+for the library under the `./inst/include` directory of our package. Further we
+use `Rcpp` to expose C++ functions to the R environment.
 
 
 ### Optimization
@@ -171,7 +175,7 @@ double fx(VectorXd x) {
 }
 ```
 
-We then set up the auto-diff version
+We then set up the auto-diff version, noting that we have to use `CppAD::AD<double>` objects rather than regular double, similarly for matrices / vectors we use the `AD<double>` object in place of `double` when declaring matrices / vectors from the `Eigen` library.
 
 ```{c++}
 typedef AD<double> a_double;
@@ -186,7 +190,9 @@ a_double fx(a_vector x) {
 }
 ```
 
-and expose the gradient
+Within `fx` we explicitly write our loops summing variables. 
+
+To expose the gradient we create the `fp` function, which relies on reverse mode AD through CppAD to compute gradients
 
 ```{c++}
 // [[Rcpp::export]]
@@ -199,15 +205,16 @@ VectorXd fp(VectorXd x)
     for (int i = 0; i < x.rows(); ++i)
         ax(i) = x(i);
 
-    Independent(ax);
-    y(0) = fx(ax);
-    gr.Dependent(ax, y);
+    Independent(ax);            // declare the elements of x as independent inputs
+    y(0) = fx(ax);              // begin trace (for reverse mode AD), this creates the
+                                // computation graph
+    gr.Dependent(ax, y);        // stop recording
 
-    return gr.Jacobian(x);
+    return gr.Jacobian(x);      // return the Jacobian
 }
 ```
 
-We can call the `fx` and `fp` functions directly in  R. Hence we can use them to find maxima using the built in `optim` function,
+Using Rcpp we compile and expose the `fx` and `fp`, making them directly available in R. We can use the built-in `optim` function to find maxima,
 
 ```{r, eval=F}
 x <- matrix(c(1, 0.2))
@@ -239,7 +246,7 @@ $$
 U(\beta; \mathcal{D}) = \log \left( L(\mathcal{D}; \beta) \pi(\beta) \right)
 $$
 where $L(\beta; \mathcal{D})$ is our likelihood function and $\pi(\beta)$ the density function of
-our prior. Where the code implementing $U(\beta; \mathcal{D})$ is given as
+our prior. We presented the implementation of $U(\beta; \mathcal{D})$ below
 
 ```{c++}
 a_double U(a_vector beta, VectorXd y, MatrixXd x, double s, 
@@ -258,10 +265,24 @@ a_double U(a_vector beta, VectorXd y, MatrixXd x, double s,
 }
 ```
 
-For the sake of brevity we do not present the code exporting the gradient of $U$, noting it is essentially identical as in the previous example. Running our Markov chain for $10,000$ iterations we obtain posterior samples for $\beta_1$ and $\beta_2$. We present the joint and marginal density is Figure 3.
+As before, we have been explicit in computing sums to ensure the computation graph can be constructed.
+
+For the sake of brevity we do not present the code exporting the gradient of
+$U$, noting it is essentially identical as in the previous example. To
+implement HMC we use boilerplate code by [@Neal2011], also available
+[online](http://www.cs.utoronto.ca/~radford/ham-mcmc-simple).
+
+Running our Markov chain for $10,000$ iterations we obtain posterior samples for $\beta_1$ and $\beta_2$. We present the joint and marginal density is Figure 3.
 
 ![**Figure 3.** Hamiltonian Monte Carlo](./hmc.png)
 
+Noting that the modes of the marginal densities are approximately at $0.0$ and $2.0$ as expected.
+
+The intention of this second example is to demonstrate that we can perform MCMC
+by specifying an objective function. We can then use off-the-shelf code to run
+our HMC sampler and avoid having to derive gradients by using AD. A further
+attractive feature of AD is that we only need to test one function; if our
+objective is correct, then our gradient function will also be correct.
 
 ## Conclusions
 
